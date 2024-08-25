@@ -56,7 +56,7 @@ pub async fn process(options: Options) {
     }
     let is_this_cdn = is_cdn(&options.ip_ranges, &ip);
 
-    if !options.allow && ((is_this_cdn && options.append) || (!is_this_cdn)) {
+    if !options.allow && (options.append || !is_cdn(&options.ip_ranges, &ip)){
         println!("{0}", options.domain);
         return ();
     }
