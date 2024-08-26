@@ -12,13 +12,14 @@ $ cdnx -h
 Usage: cdnx [OPTIONS] [PORTS]
 
 Arguments:
-  [PORTS]  Comma-sperated ports (e.g 80,443,8000)
+  [PORTS]  comma-sperated ports (e.g 80,443,8000)
 
 Options:
-  -t <THREAD>      Number of threads [default: 100]
-  -a               Append CDN hosts
-  -v               Verbose mode
-  -h, --help       Print help
+  -t <THREAD>           number of threads
+  -m <MILISECONDS>      timeout in miliseconds
+  -a                    append CDN hosts (only with default HTTP ports when ran with a comma-seperated port list)
+  -v                    verbose mode
+  -h, --help            Print help
 ```
 
 1. Simply remove CDN domains:
@@ -39,11 +40,9 @@ medium.com:443
 $ cat domains.txt | cdnx -a "80,443,8000,5000" | httpx
 ...
 ```
-3. Use as normal `A` record resolver:
+3. (recommended) Integrate with something like `dnsx` in large data:
 ```console
-$ printf "noneexists.zzz\nmedium.com\nford.com" | cdnx -a
-ford.com
-medium.com
+$ cat large-100000-data.txt | dnsx | cdnx 
 ```
 
 ### Configurations
