@@ -9,7 +9,6 @@ use trust_dns_resolver::{
 };
 
 use crate::structs::{Config, Options};
-use fs_extra::dir::{copy, CopyOptions};
 use regex::Regex;
 use reqwest::Client;
 use serde_yaml;
@@ -25,12 +24,25 @@ use std::{env, fs};
 use tokio;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::channel;
+use lazy_static::lazy_static;
+use include_dir::{include_dir, Dir};
 
+static STATIC_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static");
 const IPV4_CIDR_REGEX: &str = r#"(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(/(3[0-2]|[1-2][0-9]|[0-9]))"#;
 const BLUE: &str = "\x1b[34m";
 const RED: &str = "\x1b[31m";
 const YELLOW: &str = "\x1b[33m";
 const RESET: &str = "\x1b[0m";
+
+lazy_static! {
+    // define global accessable dynamic varables
+    static ref Home: String = env::var("HOME").expect("Failed to read $HOME environment variable");
+    static ref BaseDir: PathBuf = PathBuf::from(Home.to_owned() + "/.config/cdnx");
+    static ref Update_File: PathBuf = BaseDir.join("last_update");
+    static ref CIDR_File: PathBuf = BaseDir.join("cidr.txt");
+    static ref Config_File: PathBuf = BaseDir.join("config.yaml");
+    
+}
 
 pub async fn process(options: Options) {
     let mut ip: String = String::new();
@@ -119,32 +131,48 @@ pub fn make_tokio_asyncresolver(
     .unwrap()
 }
 
+/// read "~/.config/cdnx/last_update"
+fn read_update_time() -> u64 {
+    let path = Update_File.to_owned();
+    match fs::read_to_string(&path) {
+        Ok(data) => {
+            data.parse::<u64>().expect(&format!("Failed to parse {0:?}", &path))
+        },
+        Err(_) => {
+            fs::write(&path, "1").expect(&format!("Failed to write {0:?}", path));
+            1
+        }
+    }
+}
+
+/// insert update epoch time to "~/.config/cdnx/last_update"
 fn insert_update_time() {
-    let home = env::var("HOME").expect("Failed to read $HOME environment variable");
-    let path = PathBuf::from(home + "/.config/cdnx/last_update");
+    let path = Update_File.to_owned();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    fs::write(path, now.to_string()).expect("Failed to write ~/.config/cdnx/last_update");
+    fs::write(&path, now.to_string()).expect(&format!("Failed to write {0:?}", path));
 }
 
+/// read "~/.config/cdnx/config.yaml"
 fn read_cfg() -> Config {
-    let home = env::var("HOME").expect("Failed to read $HOME environment variable");
-    let path = PathBuf::from(home + "/.config/cdnx/config.yaml");
-    let data = fs::read_to_string(path).expect("Failed to read ~/.config/cdnx/config.yaml");
+    let path = Config_File.to_owned();
+    let data = fs::read_to_string(&path).expect(&format!("Failed to read {0:?}", &path));
     let config: Config =
-        serde_yaml::from_str(&data).expect("Failed to parse ~/.config/cdnx/config.yaml");
+        serde_yaml::from_str(&data).expect(&format!("Failed to parse {0:?}", path));
     config
 }
-
+/// write static dir files to "~/.config/cdnx/"
 fn write_cfg() {
-    let home = env::var("HOME").expect("Failed to read $HOME environment variable");
-    let dest_path = Path::new(&home).join(".config/cdnx");
-    let mut options = CopyOptions::new();
-    options.content_only = true;
-    fs::create_dir_all(&dest_path).expect("Failed to create ~/.config/cdnx/ directory");
-    copy("static", dest_path, &options).unwrap();
+    let path = BaseDir.to_owned();
+    fs::create_dir_all(&path).expect(&format!("Failed to create {0:?}", &path));
+
+    for file in STATIC_DIR.files() {
+        let file_path = path.join(file.path());
+        let content = file.contents();
+        fs::write(&file_path, content).expect(&format!("Failed to write {file:?}"));
+    }
 }
 
 fn logger(color: &str, sign: &str, msg: &str, verbose: bool) {
@@ -194,12 +222,12 @@ fn is_ip_in_cidr(ip: Ipv4Addr, network_ip: Ipv4Addr, prefix_len: u8) -> bool {
     (ip_u32 & netmask_u32) == (network_ip_u32 & netmask_u32)
 }
 
+/// read "~/.config/cdnx/cidr.txt"
 pub fn read_cidrs() -> Vec<String> {
-    let home = env::var("HOME").expect("Failed to read $HOME environment variable");
-    let path = PathBuf::from(home + "/.config/cdnx").join("cidr.txt");
+    let path = CIDR_File.to_owned();
 
-    fs::read_to_string(path)
-        .expect("Failed to read ~/.config/cdnx/cidr.txt")
+    fs::read_to_string(&path)
+        .expect(&format!("Failed to read {0:?}", path))
         .trim()
         .lines()
         .map(|l| l.trim().to_string())
@@ -278,39 +306,33 @@ async fn update_cidrs(
     Ok(())
 }
 
+/// load ~/.config/cdnx/config.yaml and check for updates
 pub async fn load_config(verbose: bool) -> Config {
-    let home = env::var("HOME").expect("Failed to read $HOME environment variable");
-    let config_dir = PathBuf::from(home + "/.config/cdnx");
-    let config_file = config_dir.join("config.yaml");
-    let cidr_file = config_dir.join("cidr.txt");
-    let mut config: Config;
     // if "~/.config/cdnx" and "~/.config/cdnx/config.yaml" exists
-    if config_dir.exists() && config_file.exists() {
-        // parse "~/.config/cdnx/config.yaml"\
-        config = read_cfg();
+    if BaseDir.exists() && Config_File.exists() {
 
-        let last_update_time = fs::read_to_string(config_dir.join("last_update"))
-            .expect("Failed to read ~/.config/cdnx/last_update file")
-            .parse::<u64>()
-            .expect("Failed to parse ~/.config/cdnx/last_update content");
+        let config: Config = read_cfg();
+
+        let last_update_time = read_update_time();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
         // if time passed from last update was lower than interval
-        if ((now - last_update_time) > (config.interval * 3600)) || !cidr_file.exists() {
-            update_cidrs(config.providers.clone(), &cidr_file, verbose)
+        if ((now - last_update_time) > (config.interval * 3600)) || !CIDR_File.exists() {
+            update_cidrs(config.providers.clone(), &CIDR_File, verbose)
                 .await
                 .unwrap();
         }
+        return config
     } else {
         write_cfg();
-        config = read_cfg();
+        let config: Config = read_cfg();
 
-        update_cidrs(config.providers.clone(), &cidr_file, verbose)
+        update_cidrs(config.providers.clone(), &CIDR_File, verbose)
             .await
             .unwrap();
+        config
     }
-    config
 }
