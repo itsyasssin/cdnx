@@ -3,7 +3,7 @@
 
 ### Installation
 ```console
-cargo install --git https://github.com/m333rl1n/cdnx.git
+cargo install --git https://github.com/itsyasssin/cdnx.git
 ```
 
 ### Features
