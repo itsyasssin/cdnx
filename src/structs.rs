@@ -22,11 +22,11 @@ pub struct Args {
     pub ports: Option<String>,
 
     /// number of threads
-    #[arg(short, default_value_t = 700)]
+    #[arg(short, default_value_t = 500)]
     pub thread: usize,
 
     /// timeout in miliseconds
-    #[arg(short, default_value_t = 700)]
+    #[arg(short, default_value_t = 2500)]
     pub miliseconds: u64,
 
     /// append CDN hosts (only with default HTTP ports when ran with a comma-seperated port list)
