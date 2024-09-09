@@ -24,12 +24,17 @@ Options:
 
 1. Simply remove CDN domains:
 ```console
-$ printf "noneexists.zzz\nmedium.com\nford.com" | cdnx -t 150
+$ cat hosts.txt 
+noneexists.zzz
+medium.com
+ford.com
+
+$ cat hosts.txt | cdnx
 ford.com
 ```
 2. Combine with httpx (or any other tool) to prevent port scan on CDN hosts:
 ```console
-$ printf "noneexists.zzz\nmedium.com\nford.com" | cdnx -a "80,443,8000,5000"
+$ cat hosts.txt | cdnx -a "80,443,8000,5000"
 ford.com:80
 ford.com:443
 ford.com:8000
@@ -37,12 +42,23 @@ ford.com:5000
 medium.com:80
 medium.com:443
 
-$ cat domains.txt | cdnx -a "80,443,8000,5000" | httpx
-...
+$ cat hosts.txt | cdnx -a "80,443,8000,5000" | httpx
+[OUTPUT]
 ```
-3. (recommended) Integrate with something like `dnsx` in large data:
+3. Supports URL as input:
 ```console
-$ cat large-100000-data.txt | dnsx | cdnx 
+$ cat urls.txt
+http://non-cdn.com/.env
+http://cdn.com/.env
+
+$ cat urls.txt | cdnx 
+http://non-cdn.com/.env
+$ cat urls.txt | cdnx | httpx
+[OUTPUT]
+```
+4. (recommended) Integrate with something like `puredns` in large data:
+```console
+$ cat large-1_000_000-data.txt | puredns resolve | cdnx 
 ```
 
 ### Configurations

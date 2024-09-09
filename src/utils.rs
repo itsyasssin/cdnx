@@ -10,7 +10,7 @@ use trust_dns_resolver::{
 
 use crate::structs::{Config, Options};
 use regex::Regex;
-use reqwest::Client;
+use reqwest::{Client, Url};
 use serde_yaml;
 use std::error::Error;
 use std::io::{self, Write};
@@ -45,13 +45,22 @@ lazy_static! {
 }
 
 pub async fn process(options: Options) {
+    let mut this_domain = options.domain.clone();
+    let mut is_url = false;
+    
+    // if domain is a url, we need to get the host name
+    if options.domain.starts_with("http://") || options.domain.starts_with("https://") {
+        this_domain = options.domain.parse::<Url>().unwrap().host_str().unwrap().to_owned();
+        is_url = true;
+    }
+
     let mut ip: String = String::new();
-    match options.domain.parse::<IpAddr>() {
+    match this_domain.parse::<IpAddr>() {
         Ok(_) => ip = options.domain.clone(),
         Err(__) => {
             if let Ok(response) = options
                 .resolver
-                .lookup_ip(options.domain.as_str().to_owned() + ".")
+                .lookup_ip(this_domain.as_str().to_owned() + ".")
                 .await
             {
                 if let Some(addr) = response.iter().next() {
@@ -73,12 +82,12 @@ pub async fn process(options: Options) {
         return ();
     }
 
-    if is_this_cdn && options.append {
+    if is_this_cdn && options.append && !is_url {
         println!("{0}:80", options.domain);
         println!("{0}:443", options.domain);
         return ();
     }
-    if !is_this_cdn {
+    if !is_this_cdn && !is_url {
         for port in options.ports.iter() {
             println!("{0}:{port}", options.domain)
         }
