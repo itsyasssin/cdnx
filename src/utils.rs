@@ -78,18 +78,17 @@ pub async fn process(options: Options) {
     let is_this_cdn = is_cdn(&options.ip_ranges, &ip);
 
     if !options.allow && (options.append || !is_cdn(&options.ip_ranges, &ip)){
-        println!("{0}", options.domain);
+        let _ = writeln!(io::stdout(), "{0}", options.domain);
         return ();
     }
 
     if is_this_cdn && options.append && !is_url {
-        println!("{0}:80", options.domain);
-        println!("{0}:443", options.domain);
+        let _ = writeln!(io::stdout(), "{0}:80\n{0}:443", options.domain);
         return ();
     }
     if !is_this_cdn && !is_url {
         for port in options.ports.iter() {
-            println!("{0}:{port}", options.domain)
+            let _ = writeln!(io::stdout(), "{0}:{1}", options.domain, port);
         }
     }
 
