@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let resolver = Arc::new(make_tokio_asyncresolver(config.resolvers, args.miliseconds));
 
     for line in stdin.lines() {
-        let domain = line.unwrap();
+        let domain = line.unwrap().trim().to_string();
 
         if domain.starts_with("*") {
             continue;

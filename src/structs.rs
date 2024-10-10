@@ -1,4 +1,5 @@
 use clap::Parser;
+use serde_json;
 use serde::{Deserialize, Serialize};
 use trust_dns_resolver::{
         name_server::{GenericConnection, GenericConnectionProvider, TokioRuntime},
@@ -7,6 +8,14 @@ use trust_dns_resolver::{
 use tokio::sync::mpsc;
 use std::sync::Arc;
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DnsResponse {
+    pub host: String,     
+    pub cdn: Option<bool>,
+    pub a: Option<Vec<String>>,               // Required field
+    #[serde(flatten)]
+    pub other: Option<serde_json::Value>, // Optional, captures unknown fields
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {

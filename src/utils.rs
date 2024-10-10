@@ -8,7 +8,7 @@ use trust_dns_resolver::{
     AsyncResolver, TokioAsyncResolver,
 };
 
-use crate::structs::{Config, Options};
+use crate::structs::{Config, Options, DnsResponse};
 use regex::Regex;
 use reqwest::{Client, Url};
 use serde_yaml;
@@ -44,52 +44,74 @@ lazy_static! {
     
 }
 
+fn process_dnsx_jsonl(options: Options) {
+    let mut response: DnsResponse = match serde_json::from_str(&options.domain) {
+        Ok(res) => res,
+        Err(_) => return,
+    };
+
+    if let Some(list) = &response.a {
+        if let Some(ip) = list.get(0) {
+            let is_this_cdn = is_cdn(&options.ip_ranges, &ip);
+            response.cdn = Some(is_this_cdn);
+
+        } else {response.cdn = Some(false);}
+    } else {response.cdn = Some(false);}
+
+
+    if let Ok(pretty) = serde_json::to_string(&response) {
+        let _ = writeln!(io::stdout(), "{0}", pretty);
+    }
+}
+
 pub async fn process(options: Options) {
-    let mut this_domain = options.domain.clone();
-    let mut is_url = false;
+    // process dnsx response
+    if options.domain.starts_with("{") {
+        return process_dnsx_jsonl(options);
+    } 
     
+    let mut _hostname = String::new();
+    let mut is_url = false;
+    let mut ip: String = String::new();
+    
+
     // if domain is a url, we need to get the host name
     if options.domain.starts_with("http://") || options.domain.starts_with("https://") {
-        this_domain = options.domain.parse::<Url>().unwrap().host_str().unwrap().to_owned();
+        _hostname = options.domain.parse::<Url>().unwrap().host_str().unwrap().to_owned();
         is_url = true;
+
+    } else {
+        _hostname = options.domain.clone();
     }
 
-    let mut ip: String = String::new();
-    match this_domain.parse::<IpAddr>() {
-        Ok(_) => ip = options.domain.clone(),
-        Err(__) => {
-            if let Ok(response) = options
-                .resolver
-                .lookup_ip(this_domain.as_str().to_owned() + ".")
-                .await
-            {
-                if let Some(addr) = response.iter().next() {
-                    if addr.is_ipv4() {
-                        ip = addr.to_string()
-                    }
-                }
+    // if input is a IP
+    if let Ok(_) = _hostname.parse::<IpAddr>() {
+        ip = options.domain.clone()
+    
+    // if input is a domain
+    } else if let Ok(response) = options.resolver.lookup_ip(_hostname.as_str().to_owned() + ".").await {
+        if let Some(addr) = response.iter().next() {
+            if addr.is_ipv4() {ip = addr.to_string()}
+        }
+    }
+
+    if ip.is_empty() {return}
+
+    let is_this_cdn = is_cdn(&options.ip_ranges, &ip);
+    
+    if (is_url || !options.allow) && (options.append || !is_this_cdn) {
+        let _ = writeln!(io::stdout(), "{0}", options.domain);
+
+    } else if options.allow {
+        if is_this_cdn && options.append {
+            let _ = writeln!(io::stdout(), "{0}:80\n{0}:443", options.domain);
+
+        } else if !is_this_cdn {
+            for port in options.ports.iter() {
+                let _ = writeln!(io::stdout(), "{0}:{1}", options.domain, port);
             }
         }
-    }
-
-    if ip.is_empty() {
-        return ();
-    }
-    let is_this_cdn = is_cdn(&options.ip_ranges, &ip);
-
-    if !options.allow && (options.append || !is_cdn(&options.ip_ranges, &ip)){
-        let _ = writeln!(io::stdout(), "{0}", options.domain);
-        return ();
-    }
-
-    if is_this_cdn && options.append && !is_url {
-        let _ = writeln!(io::stdout(), "{0}:80\n{0}:443", options.domain);
-        return ();
-    }
-    if !is_this_cdn && !is_url {
-        for port in options.ports.iter() {
-            let _ = writeln!(io::stdout(), "{0}:{1}", options.domain, port);
-        }
+    
     }
 
     drop(options.permit);
@@ -254,8 +276,7 @@ async fn update_cidrs(
     let (cx, mut rx) = channel(100);
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
-        .build()
-        .unwrap();
+        .build()?;
 
     for url_value in providers {
         let url = url_value;
