@@ -1,21 +1,33 @@
 providers:
-    - "https://api.fastly.com/public-ip-list"
-    - "https://www.cloudflare.com/ips-v4"
-    - "https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips"
-    - "https://support.maxcdn.com/hc/en-us/article_attachments/360051920551/maxcdn_ips.txt"
-    - "https://cachefly.cachefly.net/ips/rproxy.txt"
-    - "https://docs-be.imperva.com/api/bundle/z-kb-articles-km/page/c85245b7.html"
-    - "http://edge.sotoon.ir/ip-list.json"
-    - "https://docs.oracle.com/en-us/iaas/tools/public_ip_ranges.json"
-    - "https://raw.githubusercontent.com/m333rl1n/cdnx/main/static-CIDRs.txt"
-    - "https://my.incapsula.com/api/integration/v1/ips"
+    - https://api.fastly.com/public-ip-list
+    - https://my.imperva.com/api/integration/v1/ips
+    - https://www.gstatic.com/ipranges/cloud.json
+    - https://www.gstatic.com/ipranges/goog.json
+    - https://www.cloudflare.com/ips-v4
+    - https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
+    - https://www.bing.com/toolbox/bingbot.json
+    - https://www.arvancloud.ir/en/ips.txt
+    - https://raw.githubusercontent.com/stamparm/maltrail/refs/heads/master/misc/cdn_ranges.txt
+    - https://cachefly.cachefly.net/ips/rproxy.txt
+    - https://download.microsoft.com/download/7/1/D/71D86715-5596-4529-9B13-DA13A5DE5B63/ServiceTags_Public_20250210.json
+    - https://digitalocean.com/geo/google.csv
+    - https://docs.oracle.com/en-us/iaas/tools/public_ip_ranges.json
+    - https://cachefly.cachefly.net/ips/rproxy.txt
+    - https://docs.imperva.com/en-US/bundle/z-kb-articles-km/page/c85245b7.html
+    - https://raw.githubusercontent.com/ImAyrix/cut-cdn/master/static/static-cdn-ranges-1.txt
+    - https://raw.githubusercontent.com/ImAyrix/cut-cdn/master/static/static-cdn-ranges-2.txt
+    - http://edge.sotoon.ir/ip-list.json
+    - http://kaeferjaeger.gay/cdn-ranges/all-cdn.txt
+    - https://raw.githubusercontent.com/projectdiscovery/cdncheck/main/sources_data.json
+    - https://raw.githubusercontent.com/six2dez/ipcdn/refs/heads/main/ranges.txt
+    - https://ip-ranges.amazonaws.com/ip-ranges.json
+    - https://prefixlists.tools.cdn77.com/public_lmax_prefixes.json
+    - https://quic.cloud/ips
+    - https://raw.githubusercontent.com/femueller/cloud-ip-ranges/refs/heads/master/aws-ip-ranges.json
 
 # default interval is every 48h
 interval: 48
 
 resolvers:
-    - "129.250.35.251:53"
-    - "8.8.4.4:53"
-    - "9.9.9.9:53"
-    - "149.112.112.112:53"
-    - "208.67.222.222:53"
+    - "80.80.80.80:53"
+    - "9.9.9.10:53"
